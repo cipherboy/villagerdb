@@ -1,4 +1,4 @@
-const cache = require('../db/cache');
+const cache = require('../db/cache/cache');
 
 /**
  * Cache key for the name of the elastic search index.

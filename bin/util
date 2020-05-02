@@ -11,7 +11,7 @@ const searchConfig = require('../config/search.js');
 const formatHelper = require('../helpers/format');
 const urlHelper = require('../helpers/url');
 const sitemap = require('../helpers/sitemap');
-const cache = require('../db/cache');
+const cache = require('../db/cache/cache');
 
 async function generateSitemap() {
     sitemap.generateMap();
