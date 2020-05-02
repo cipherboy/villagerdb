@@ -1,6 +1,47 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const users = require('../db/entity/users');
+const systemCache = require('../db/cache/cache');
+
+/**
+ * Cache key prefix for user profile storage.
+ * @type {string}
+ */
+const USER_KEY_PREFIX = 'user:';
+
+/**
+ * How long to store the user's profile in Redis (seconds) before we will ask Mongo for it again.
+ * @type {number}
+ */
+const USER_CACHE_EXPIRE_TIME = 60 * 30; // 30 minutes
+
+/**
+ * Load the given user from either the cache or the Mongo database. If not cached, cache them.
+ * @param id
+ * @returns {Promise<{}|null>}
+ */
+async function loadUser(id) {
+    const cachedUser = await systemCache.get(USER_KEY_PREFIX + id);
+    if (cachedUser) {
+        return JSON.parse(cachedUser);
+    } else {
+        const user = await users.findUserById(id);
+        const userData = {};
+        userData.id = user._id;
+        userData.username = user.username;
+
+        // Cache user profile if registered with a username.
+        if (userData.username) {
+            await systemCache.set(USER_KEY_PREFIX + id, JSON.stringify(userData),
+                USER_CACHE_EXPIRE_TIME);
+        }
+
+        return userData;
+    }
+
+    // Nothing found. Bad session.
+    return null;
+}
 
 /**
  * Setup Google strategy for passport.js and callback function
@@ -55,16 +96,9 @@ passport.deserializeUser(function(id, callback) {
     // Make sure the serialized user is a string and not something strange
     if (typeof id !== 'string') { callback(null, null); }
 
-    users.findUserById(id)
-        .then((user) => {
-            if (user) {
-                const userData = {};
-                userData.id = user._id;
-                userData.username = user.username;
-                callback(null, userData);
-            } else {
-                callback(null, null);
-            }
+    loadUser(id)
+        .then((userData) => {
+            callback(null, userData);
         })
         .catch((err) => {
             callback(err);

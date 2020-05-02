@@ -29,10 +29,14 @@ class Cache {
      *
      * @param key
      * @param value
+     * @param expireTimeSeconds if set, how quickly the key expires
      * @returns {Promise<*>}
      */
-    async set(key, value) {
-        return this.redisClient.setAsync(this.keyPrefix + key, value);
+    async set(key, value, expireTimeSeconds = undefined) {
+        await this.redisClient.setAsync(this.keyPrefix + key, value);
+        if (expireTimeSeconds) {
+            await this.redisClient.expireAsync(this.keyPrefix + key, expireTimeSeconds);
+        }
     }
 }
 
